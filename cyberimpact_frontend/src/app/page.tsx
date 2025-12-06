@@ -4,52 +4,68 @@ import axios from "axios";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [tools, setTools] = useState({
-    nikto: true, clamav: true, openvas: false, trivy: true, semgrep: true,
-  });
+  const [analyzing, setAnalyzing] = useState(false);
+  const [runningCheck, setRunningCheck] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [checkResult, setCheckResult] = useState<any>(null);
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = async () => {
-    setRunning(true);
-    setResult(null);
+  const analyzeRepo = async () => {
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    setCheckResult(null);
+    setError(null);
     try {
-      if (repoUrl) {
-        const resp = await axios.post("http://localhost:8000/scan/clone", {
-          repo_url: repoUrl
-        });
-        setResult(resp.data);
-      } else {
-        // Fallback for existing logic or file upload if needed later
-        const form = new FormData();
-        if (file) form.append("repo_zip", file);
-        form.append("tools", JSON.stringify(tools));
-
-        const resp = await axios.post("/api/scan", form, {
-          headers: { "Content-Type": "multipart/form-data" },
-          timeout: 600000
-        });
-        setResult(resp.data);
-      }
+      const resp = await axios.post("http://localhost:8000/scan/analyze", {
+        repo_url: repoUrl
+      });
+      setAnalysisResult(resp.data);
+      setSelectedTools(resp.data.suggested_tools || []);
     } catch (err: any) {
       console.error(err);
-      setResult({ error: err?.response?.data?.detail || err.message });
+      setError(err?.response?.data?.detail || err.message);
     } finally {
-      setRunning(false);
+      setAnalyzing(false);
+    }
+  };
+
+  const runSecurityCheck = async () => {
+    setRunningCheck(true);
+    setCheckResult(null);
+    setError(null);
+    try {
+      const resp = await axios.post("http://localhost:8000/scan/execute", {
+        repo_path: analysisResult.repo_path,
+        selected_tools: selectedTools
+      });
+      setCheckResult(resp.data);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.detail || err.message);
+    } finally {
+      setRunningCheck(false);
+    }
+  };
+
+  const toggleTool = (tool: string) => {
+    if (selectedTools.includes(tool)) {
+      setSelectedTools(selectedTools.filter(t => t !== tool));
+    } else {
+      setSelectedTools([...selectedTools, tool]);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center p-8">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-3xl">
 
         {/* Header */}
         <h1 className="text-4xl font-extrabold mb-4 text-white tracking-tight">
-          🔍 Repository Security Scanner
+          🔍 AI-Powered Security Scanner
         </h1>
         <p className="text-gray-400 mb-8">
-          Scan GitHub repositories or uploaded ZIP files with multiple security analyzers.
+          Analyze GitHub repositories with Gemini AI and run targeted security checks.
         </p>
 
         {/* Card */}
@@ -60,73 +76,114 @@ export default function Home() {
             <label className="block text-sm mb-2 font-semibold text-gray-300">
               GitHub Repository URL
             </label>
-            <input
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/user/repo"
-              className="w-full rounded-lg bg-gray-800 text-gray-100 px-4 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm mb-2 font-semibold text-gray-300">
-              Or Upload Repository ZIP File
-            </label>
-            <input
-              type="file"
-              accept=".zip"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg 
-                         file:border-0 file:bg-blue-600 file:text-white file:cursor-pointer 
-                         bg-gray-800 rounded-lg p-2 border border-gray-700 cursor-pointer"
-            />
-          </div>
-
-          {/* Tools */}
-          <div>
-            <label className="block text-sm mb-3 font-semibold text-gray-300">Select Tools</label>
-            <div className="flex flex-wrap gap-4">
-              {Object.keys(tools).map((tool) => (
-                <label
-                  key={tool}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg border border-gray-700 cursor-pointer hover:bg-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(tools as any)[tool]}
-                    onChange={(e) =>
-                      setTools((prev) => ({ ...prev, [tool]: e.target.checked }))
-                    }
-                    className="accent-blue-500"
-                  />
-                  <span className="capitalize">{tool}</span>
-                </label>
-              ))}
+            <div className="flex gap-2">
+              <input
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="https://github.com/user/repo"
+                className="flex-1 rounded-lg bg-gray-800 text-gray-100 px-4 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={analyzeRepo}
+                disabled={analyzing || !repoUrl}
+                className={`px-6 py-2 rounded-lg font-semibold transition 
+                  ${analyzing || !repoUrl
+                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"}
+                `}
+              >
+                {analyzing ? "Analyzing..." : "Analyze"}
+              </button>
             </div>
           </div>
 
-          {/* Button */}
-          <button
-            onClick={submit}
-            disabled={running}
-            className={`w-full py-3 rounded-lg text-lg font-semibold transition 
-              ${running
-                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"}
-            `}
-          >
-            {running ? "Running Scan..." : "Run Security Scan"}
-          </button>
+          {error && (
+            <div className="p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200">
+              Error: {error}
+            </div>
+          )}
+
+          {/* Analysis Results & Tool Selection */}
+          {analysisResult && (
+            <div className="animate-fade-in">
+              <div className="mb-4 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-200 mb-2">Analysis Complete</h3>
+                <p className="text-sm text-gray-300">
+                  Repository cloned to: <code className="bg-gray-800 px-1 rounded">{analysisResult.repo_path}</code>
+                </p>
+              </div>
+
+              <label className="block text-sm mb-3 font-semibold text-gray-300">
+                Suggested Tools (Select to run)
+              </label>
+              <div className="flex flex-wrap gap-3 mb-6">
+                {selectedTools.map((tool) => (
+                  <label
+                    key={tool}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
+                      ${selectedTools.includes(tool)
+                        ? "bg-blue-900/40 border-blue-500 text-blue-100"
+                        : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"}
+                    `}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedTools.includes(tool)}
+                      onChange={() => toggleTool(tool)}
+                      className="accent-blue-500"
+                    />
+                    <span className="capitalize">{tool}</span>
+                  </label>
+                ))}
+                {selectedTools.length === 0 && (
+                  <p className="text-gray-500 italic">No specific tools suggested.</p>
+                )}
+              </div>
+
+              <button
+                onClick={runSecurityCheck}
+                disabled={runningCheck || selectedTools.length === 0}
+                className={`w-full py-3 rounded-lg text-lg font-semibold transition 
+                  ${runningCheck || selectedTools.length === 0
+                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700 text-white"}
+                `}
+              >
+                {runningCheck ? "Running Security Checks..." : "Run Security Check"}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Results */}
-        <div className="mt-10">
-          <h3 className="text-2xl font-bold mb-3">Scan Results</h3>
-          <pre className="bg-gray-900 p-6 rounded-xl border border-gray-800 text-gray-300 overflow-auto whitespace-pre-wrap">
-            {result ? JSON.stringify(result, null, 2) : "No results yet."}
-          </pre>
-        </div>
+        {/* Check Results */}
+        {checkResult && (
+          <div className="mt-10 animate-fade-in">
+            <h3 className="text-2xl font-bold mb-3">Security Report</h3>
+            <div className="space-y-4">
+              {Object.entries(checkResult.results).map(([tool, findings]: [string, any]) => (
+                <div key={tool} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                  <div className="bg-gray-800/50 px-6 py-3 border-b border-gray-800">
+                    <h4 className="font-bold text-lg capitalize text-blue-300">{tool}</h4>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {findings.map((finding: any, idx: number) => (
+                      <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
+                        <p className="font-semibold text-gray-400 mb-1">File: {finding.file}</p>
+                        {finding.error ? (
+                          <p className="text-red-400">Error: {finding.error}</p>
+                        ) : (
+                          <div className="prose prose-invert max-w-none text-sm text-gray-300 whitespace-pre-wrap">
+                            {finding.analysis}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

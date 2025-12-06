@@ -1,11 +1,12 @@
+# cyberimpact_backend/main.py
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import os
-import shutil
-import tempfile
 import git
-import uuid
+from schemas import RepoRequest, SecurityCheckRequest
+from services.repo_service import clone_repository, detect_tech_stack
+from services.ai_service import perform_ai_check
 
 app = FastAPI()
 
@@ -18,33 +19,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class RepoRequest(BaseModel):
-    repo_url: str
-
-@app.post("/scan/clone")
-async def clone_repo(request: RepoRequest):
+@app.post("/scan/analyze")
+async def analyze_repo(request: RepoRequest):
     try:
-        # Define the base directory for cloned repos
-        base_dir = os.path.join(os.getcwd(), "cloned_repos")
-        os.makedirs(base_dir, exist_ok=True)
-
-        # Create a unique directory for this specific clone
-        # Using UUID to ensure uniqueness
-        repo_name = request.repo_url.split("/")[-1].replace(".git", "")
-        unique_id = str(uuid.uuid4())[:8]
-        clone_dir_name = f"{repo_name}_{unique_id}"
-        clone_path = os.path.join(base_dir, clone_dir_name)
-        
         # Clone the repository
-        git.Repo.clone_from(request.repo_url, clone_path)
+        clone_path = clone_repository(request.repo_url)
         
+        # Detect tech stack using heuristics
+        suggested_tools = detect_tech_stack(clone_path)
+
         return {
-            "message": "Repository cloned successfully",
-            "temp_path": clone_path,
-            "repo_url": request.repo_url
+            "message": "Repository analyzed successfully",
+            "repo_path": clone_path,
+            "repo_url": request.repo_url,
+            "suggested_tools": suggested_tools
         }
     except git.GitCommandError as e:
         raise HTTPException(status_code=400, detail=f"Failed to clone repository: {str(e)}")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.post("/scan/execute")
+async def perform_security_check(request: SecurityCheckRequest):
+    try:
+        results = {}
+        
+        files_to_check = []
+        for root, dirs, files in os.walk(request.repo_path):
+            for file in files:
+                if file.endswith(('.py', '.js', '.ts', '.java', '.go', '.rb', '.php')):
+                     files_to_check.append(os.path.join(root, file))
+        
+        # Limit to first 3 files for performance
+        files_to_check = files_to_check[:3] 
+        
+        for tool in request.selected_tools:
+            tool_results = []
+            for file_path in files_to_check:
+                try:
+                    with open(file_path, 'r') as f:
+                        content = f.read()
+                    
+                    analysis = perform_ai_check(tool, file_path, content)
+
+                    tool_results.append({
+                        "file": os.path.basename(file_path),
+                        "analysis": analysis
+                    })
+                except Exception as e:
+                    tool_results.append({
+                        "file": os.path.basename(file_path),
+                        "error": str(e)
+                    })
+            results[tool] = tool_results
+
+        return {
+            "message": "Security check completed",
+            "results": results
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 

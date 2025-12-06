@@ -19,21 +19,21 @@ This is the FastAPI backend for the CyberImpact security scanning application. I
     It is recommended to use a virtual environment to manage dependencies.
     ```bash
     python3 -m venv venv
+    source venv/bin/activate
     ```
-
-3.  **Activate the virtual environment:**
-    - On Linux/macOS:
-        ```bash
-        source venv/bin/activate
-        ```
-    - On Windows:
-        ```bash
-        .\venv\Scripts\activate
-        ```
-
-4.  **Install dependencies:**
+3.  **Install dependencies**:
     ```bash
     pip install -r requirements.txt
+    ```
+4.  **Set up Gemini API Key (Optional but recommended)**:
+    - Get a key from [Google AI Studio](https://aistudio.google.com/).
+    - Export it as an environment variable:
+      ```bash
+      export GEMINI_API_KEY="your_api_key_here"
+      ```
+5.  **Run the server**:
+    ```bash
+    uvicorn main:app --reload --port 8000
     ```
 
 ## Running the Server
@@ -42,6 +42,12 @@ Start the development server with hot-reloading enabled:
 
 ```bash
 uvicorn main:app --reload --port 8000
+```
+
+##OR
+
+```bash
+rm -rf venv && python3 -m venv venv && ./venv/bin/pip install -r requirements.txt && ./venv/bin/uvicorn main:app --reload --port 8000
 ```
 
 The server will be running at `http://localhost:8000`.
