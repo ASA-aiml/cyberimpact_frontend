@@ -3,4 +3,10 @@ uvicorn
 pydantic
 gitpython
 gitpython
+gitpython
 google-generativeai
+bandit
+safety
+python-docx
+semgrep
+njsscan

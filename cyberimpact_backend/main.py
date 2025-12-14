@@ -1,12 +1,13 @@
-# cyberimpact_backend/main.py
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import os
 import git
 from schemas import RepoRequest, SecurityCheckRequest
 from services.repo_service import clone_repository, detect_tech_stack
-from services.ai_service import perform_ai_check
+from services.ai_service import perform_ai_check, summarize_scan_results
+from services.scanner_service import run_security_scan
+from services.report_service import generate_docx_report
 
 app = FastAPI()
 
@@ -46,42 +47,42 @@ async def perform_security_check(request: SecurityCheckRequest):
     try:
         results = {}
         
-        files_to_check = []
-        for root, dirs, files in os.walk(request.repo_path):
-            for file in files:
-                if file.endswith(('.py', '.js', '.ts', '.java', '.go', '.rb', '.php')):
-                     files_to_check.append(os.path.join(root, file))
-        
-        # Limit to first 3 files for performance
-        files_to_check = files_to_check[:3] 
-        
+        # Run selected tools
         for tool in request.selected_tools:
-            tool_results = []
-            for file_path in files_to_check:
-                try:
-                    with open(file_path, 'r') as f:
-                        content = f.read()
-                    
-                    analysis = perform_ai_check(tool, file_path, content)
+            # Check if it's a known static analysis tool
+            if any(x in tool for x in ["bandit", "safety", "npm-audit", "secret-scanning", "semgrep", "njsscan"]):
+                 results[tool] = run_security_scan(request.repo_path, tool)
+            else:
+                # Fallback to AI check for other/generic tools or if specific file analysis was requested
+                # For now, we will just use the scanner service for everything we support
+                # and maybe add a generic AI scan as an "extra" tool if requested.
+                # But per user request, we focus on static tools.
+                results[tool] = {"output": "Tool not supported for static scan yet."}
 
-                    tool_results.append({
-                        "file": os.path.basename(file_path),
-                        "analysis": analysis
-                    })
-                except Exception as e:
-                    tool_results.append({
-                        "file": os.path.basename(file_path),
-                        "error": str(e)
-                    })
-            results[tool] = tool_results
+        # Generate AI Summary
+        ai_summary = summarize_scan_results(results)
 
+        # Generate Report
+        report_path = generate_docx_report(request.repo_path, results, ai_summary) # Using repo path as URL proxy for now in report
+        
         return {
             "message": "Security check completed",
-            "results": results
+            "results": results,
+            "ai_summary": ai_summary,
+            "report_url": f"/reports/{os.path.basename(report_path)}"
         }
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.get("/reports/{report_filename}")
+async def download_report(report_filename: str):
+    file_path = os.path.join(os.getcwd(), "reports", report_filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document', filename=report_filename)
+    raise HTTPException(status_code=404, detail="Report not found")
 
 @app.get("/")
 def read_root():

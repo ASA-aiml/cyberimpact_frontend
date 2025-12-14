@@ -158,26 +158,47 @@ export default function Home() {
         {/* Check Results */}
         {checkResult && (
           <div className="mt-10 animate-fade-in">
-            <h3 className="text-2xl font-bold mb-3">Security Report</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold">Security Report</h3>
+              {checkResult.report_url && (
+                <a
+                  href={`http://localhost:8000${checkResult.report_url}`}
+                  download
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+                >
+                  📄 Download Report (DOCX)
+                </a>
+              )}
+            </div>
+
+            {/* AI Summary */}
+            {checkResult.ai_summary && (
+              <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl border border-purple-500/30 p-6 mb-8">
+                <h4 className="text-xl font-bold text-purple-300 mb-3 flex items-center gap-2">
+                  ✨ AI Executive Summary
+                </h4>
+                <div className="prose prose-invert max-w-none text-gray-200 whitespace-pre-wrap">
+                  {checkResult.ai_summary}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
-              {Object.entries(checkResult.results).map(([tool, findings]: [string, any]) => (
+              {Object.entries(checkResult.results).map(([tool, result]: [string, any]) => (
                 <div key={tool} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
                   <div className="bg-gray-800/50 px-6 py-3 border-b border-gray-800">
                     <h4 className="font-bold text-lg capitalize text-blue-300">{tool}</h4>
                   </div>
-                  <div className="p-6 space-y-4">
-                    {findings.map((finding: any, idx: number) => (
-                      <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
-                        <p className="font-semibold text-gray-400 mb-1">File: {finding.file}</p>
-                        {finding.error ? (
-                          <p className="text-red-400">Error: {finding.error}</p>
-                        ) : (
-                          <div className="prose prose-invert max-w-none text-sm text-gray-300 whitespace-pre-wrap">
-                            {finding.analysis}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  <div className="p-6">
+                    {result.error ? (
+                      <p className="text-red-400">Error: {result.error}</p>
+                    ) : (
+                      <pre className="text-sm text-gray-300 whitespace-pre-wrap overflow-auto max-h-96">
+                        {typeof result.output === 'string'
+                          ? result.output
+                          : JSON.stringify(result.output, null, 2)}
+                      </pre>
+                    )}
                   </div>
                 </div>
               ))}
