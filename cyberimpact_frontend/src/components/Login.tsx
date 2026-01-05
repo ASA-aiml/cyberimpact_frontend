@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import axios from "axios";
 import { signInWithPopup, GoogleAuthProvider, User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 
@@ -16,7 +17,13 @@ export default function Login() {
             setUser(user);
             const idToken = await user.getIdToken();
             setToken(idToken);
-            console.log("User ID Token:", idToken);
+
+            // Send token to backend
+            await axios.get("http://localhost:8000/api/verify-auth", {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
         } catch (error) {
             console.error("Error signing in:", error);
         }
