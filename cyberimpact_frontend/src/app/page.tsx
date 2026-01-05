@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import axios from "axios";
+import Login from "../components/Login";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
@@ -59,7 +60,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center p-8">
       <div className="w-full max-w-3xl">
-
+        <Login />
         {/* Header */}
         <h1 className="text-4xl font-extrabold mb-4 text-white tracking-tight">
           🔍 AI-Powered Security Scanner

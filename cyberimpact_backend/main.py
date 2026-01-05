@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import git
 from schemas import RepoRequest, SecurityCheckRequest
@@ -8,8 +9,11 @@ from services.repo_service import clone_repository, detect_tech_stack
 from services.ai_service import perform_ai_check, summarize_scan_results
 from services.scanner_service import run_security_scan
 from services.report_service import generate_docx_report
+from services.auth_service import verify_token
 
 app = FastAPI()
+
+security = HTTPBearer()
 
 # Configure CORS
 app.add_middleware(
@@ -19,6 +23,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/api/verify-auth")
+async def verify_authentication(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    decoded_token = verify_token(token)
+    return {"message": "Authentication successful", "user": decoded_token}
 
 @app.post("/scan/analyze")
 async def analyze_repo(request: RepoRequest):

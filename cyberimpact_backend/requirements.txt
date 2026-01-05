@@ -10,3 +10,4 @@ safety
 python-docx
 semgrep
 njsscan
+firebase-admin
