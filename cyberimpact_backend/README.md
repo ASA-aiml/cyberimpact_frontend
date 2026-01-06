@@ -80,3 +80,12 @@ Clones a GitHub repository to a unique temporary directory on the server.
 
 - `main.py`: The entry point for the FastAPI application.
 - `requirements.txt`: List of Python dependencies.
+
+## Docker
+
+- `Dockerfile`: The Dockerfile for building the Docker image.
+- `.dockerignore`: The Docker ignore file for ignoring files and directories that are not needed in the Docker image.
+```bash
+docker build -t cyberimpact-backend .
+docker run -p 8000:8000 --env-file .env cyberimpact-backend
+```

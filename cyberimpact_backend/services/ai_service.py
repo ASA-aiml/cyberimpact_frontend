@@ -1,3 +1,4 @@
+# cyberimpact_backend/services/ai_service.py
 import google.generativeai as genai
 from config import GEMINI_API_KEY
 import os
