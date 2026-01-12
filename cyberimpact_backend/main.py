@@ -1,16 +1,23 @@
 # cyberimpact_backend/main.py
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import git
-from typeCast import RepoRequest, SecurityCheckRequest
+from pathlib import Path
+from typeCast import (
+    RepoRequest, SecurityCheckRequest, AssetInventoryResponse, 
+    FinancialDocResponse, DocumentListItem
+)
 from services.repo_service import clone_repository, detect_tech_stack
 from services.ai_service import perform_ai_check, summarize_scan_results
 from services.scanner_service import run_security_scan
 from services.report_service import generate_docx_report
 from services.auth_service import verify_token
+from services.db_service import db_service
+from services.file_service import FileService
+from config import MAX_FILE_SIZE
 
 app = FastAPI()
 
@@ -94,6 +101,274 @@ async def download_report(report_filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document', filename=report_filename)
     raise HTTPException(status_code=404, detail="Report not found")
+
+# File Upload Endpoints
+
+@app.post("/api/upload/asset-inventory", response_model=AssetInventoryResponse)
+async def upload_asset_inventory(
+    file: UploadFile = File(...), 
+    uploader_id: str = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload Asset Inventory Excel file (requires authentication)"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        authenticated_uid = decoded_token.get('uid')
+        
+        # Use authenticated UID instead of client-provided uploader_id for security
+        uploader_id = authenticated_uid
+        # Validate file extension
+        if not FileService.validate_asset_file(file.filename):
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid file type. Only .xlsx files are allowed for Asset Inventory."
+            )
+        
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        # Validate file size
+        if not FileService.validate_file_size(file_size):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / (1024*1024)}MB"
+            )
+        
+        # Save file temporarily
+        file_path = FileService.save_uploaded_file(file_content, file.filename)
+        
+        try:
+            # Process Excel file
+            data = FileService.process_xlsx_file(file_path)
+            
+            # Store in MongoDB
+            document_id = db_service.create_asset_inventory(
+                filename=file.filename,
+                file_size=file_size,
+                data=data,
+                uploader_id=uploader_id
+            )
+            
+            # Get the created document
+            document = db_service.get_asset_inventory(document_id)
+            
+            return AssetInventoryResponse(
+                id=document["_id"],
+                filename=document["filename"],
+                upload_date=document["upload_date"],
+                file_size=document["file_size"],
+                message="Asset Inventory uploaded successfully"
+            )
+        finally:
+            # Clean up temporary file
+            FileService.delete_file(file_path)
+            
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.post("/api/upload/financial-doc", response_model=FinancialDocResponse)
+async def upload_financial_document(
+    file: UploadFile = File(...), 
+    uploader_id: str = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload Financial Document (PDF, DOC, DOCX) (requires authentication)"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        authenticated_uid = decoded_token.get('uid')
+        
+        # Use authenticated UID instead of client-provided uploader_id for security
+        uploader_id = authenticated_uid
+        # Validate file extension
+        if not FileService.validate_financial_file(file.filename):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Only .pdf, .doc, and .docx files are allowed for Financial Documents."
+            )
+        
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        # Validate file size
+        if not FileService.validate_file_size(file_size):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / (1024*1024)}MB"
+            )
+        
+        # Save file temporarily
+        file_path = FileService.save_uploaded_file(file_content, file.filename)
+        
+        try:
+            # Determine file type and process accordingly
+            file_ext = Path(file.filename).suffix.lower()
+            
+            if file_ext == '.pdf':
+                result = FileService.process_pdf_file(file_path)
+            elif file_ext in ['.doc', '.docx']:
+                result = FileService.process_docx_file(file_path)
+            else:
+                raise ValueError(f"Unsupported file type: {file_ext}")
+            
+            # Store in MongoDB
+            document_id = db_service.create_financial_document(
+                filename=file.filename,
+                file_size=file_size,
+                file_type=file_ext.replace('.', ''),
+                extracted_text=result["extracted_text"],
+                metadata=result["metadata"],
+                uploader_id=uploader_id
+            )
+            
+            # Get the created document
+            document = db_service.get_financial_document(document_id)
+            
+            return FinancialDocResponse(
+                id=document["_id"],
+                filename=document["filename"],
+                upload_date=document["upload_date"],
+                file_size=document["file_size"],
+                file_type=document["file_type"],
+                message="Financial Document uploaded successfully"
+            )
+        finally:
+            # Clean up temporary file
+            FileService.delete_file(file_path)
+            
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.get("/api/documents/asset-inventory")
+async def list_asset_inventories(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """List uploaded asset inventories for the authenticated user"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_uid = decoded_token.get('uid')
+        
+        # Get only documents uploaded by this user
+        documents = db_service.list_asset_inventories_by_user(user_uid)
+        return {
+            "count": len(documents),
+            "documents": [
+                {
+                    "id": doc["_id"],
+                    "filename": doc["filename"],
+                    "upload_date": doc["upload_date"],
+                    "file_size": doc["file_size"],
+                    "file_type": doc["file_type"]
+                }
+                for doc in documents
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.get("/api/documents/financial")
+async def list_financial_documents(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """List uploaded financial documents for the authenticated user"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_uid = decoded_token.get('uid')
+        
+        # Get only documents uploaded by this user
+        documents = db_service.list_financial_documents_by_user(user_uid)
+        return {
+            "count": len(documents),
+            "documents": [
+                {
+                    "id": doc["_id"],
+                    "filename": doc["filename"],
+                    "upload_date": doc["upload_date"],
+                    "file_size": doc["file_size"],
+                    "file_type": doc["file_type"]
+                }
+                for doc in documents
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.get("/api/documents/{document_id}")
+async def get_document(document_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get document by UUID (only if owned by authenticated user)"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_uid = decoded_token.get('uid')
+        
+        # Try asset inventory first
+        document = db_service.get_asset_inventory(document_id)
+        if document:
+            # Check if user owns this document
+            if document.get("metadata", {}).get("uploader_id") != user_uid:
+                raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+            return {"type": "asset_inventory", "document": document}
+        
+        # Try financial documents
+        document = db_service.get_financial_document(document_id)
+        if document:
+            # Check if user owns this document
+            if document.get("metadata", {}).get("uploader_id") != user_uid:
+                raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+            return {"type": "financial_document", "document": document}
+        
+        raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.delete("/api/documents/{document_id}")
+async def delete_document(document_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Delete document by UUID (only if owned by authenticated user)"""
+    try:
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_uid = decoded_token.get('uid')
+        
+        # Check asset inventory first
+        document = db_service.get_asset_inventory(document_id)
+        if document:
+            # Verify ownership
+            if document.get("metadata", {}).get("uploader_id") != user_uid:
+                raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+            if db_service.delete_asset_inventory(document_id):
+                return {"message": "Asset inventory deleted successfully"}
+        
+        # Check financial documents
+        document = db_service.get_financial_document(document_id)
+        if document:
+            # Verify ownership
+            if document.get("metadata", {}).get("uploader_id") != user_uid:
+                raise HTTPException(status_code=403, detail="Access denied: You don't own this document")
+            if db_service.delete_financial_document(document_id):
+                return {"message": "Financial document deleted successfully"}
+        
+        raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @app.get("/")
 def read_root():

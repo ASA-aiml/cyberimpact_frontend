@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { jsonLd } from "@/lib/metadata";
+import { UserProvider } from "@/contexts/UserContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +29,13 @@ export const metadata = createMetadata({
 <Script
   id="json-ld"
   type="application/ld+json"
-  dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd({
-    siteUrl: "https://example.com",
-    title: "MyApp",
-    description: "Best productivity app",
-  })) }}
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify(jsonLd({
+      siteUrl: "https://example.com",
+      title: "MyApp",
+      description: "Best productivity app",
+    }))
+  }}
 />
 
 
@@ -46,7 +49,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
       </body>
     </html>
   );

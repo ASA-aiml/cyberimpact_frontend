@@ -2,8 +2,6 @@ fastapi
 uvicorn
 pydantic
 gitpython
-gitpython
-gitpython
 google-generativeai
 bandit
 safety
@@ -11,3 +9,7 @@ python-docx
 semgrep
 njsscan
 firebase-admin
+pymongo
+python-multipart
+openpyxl
+PyPDF2
