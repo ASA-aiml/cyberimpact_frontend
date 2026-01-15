@@ -41,16 +41,15 @@ DATE: 2026-01-14
 ================================================================================
 """
 
-
 import os
 import datetime
 import json
 
 def generate_docx_report(repo_url: str, scan_results: dict, ai_summary: str = "") -> str:
-    """
-    Generates a Markdown report from scan results with focus on essential findings.
-    Returns the path to the generated file.
-    """
+    
+    # Generates a Markdown report from scan results with focus on essential findings.
+    # Returns the path to the generated file.
+   
     
     # Create reports directory
     reports_dir = os.path.join(os.getcwd(), "reports")

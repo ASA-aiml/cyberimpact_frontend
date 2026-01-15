@@ -231,7 +231,7 @@ def run_security_scan(repo_path: str, tool: str) -> dict:
     return results
 
 
-def generate_markdown_report(scan_results: list, output_file: str = "security_report.md"):
+# def generate_markdown_report(scan_results: list, output_file: str = "security_report.md"):
     """
     Generate a markdown report from security scan results.
     

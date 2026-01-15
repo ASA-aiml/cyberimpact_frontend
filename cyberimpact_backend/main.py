@@ -18,6 +18,7 @@ from services.report_generate_service import generate_docx_report
 from services.auth_service import verify_token
 from services.db.db_service import db_service
 from services.db.file_service import FileService
+from services.financial.financial_pipeline import process_scan_results, generate_financial_report_markdown
 from config import MAX_FILE_SIZE
 
 app = FastAPI()
@@ -62,8 +63,17 @@ async def analyze_repo(request: RepoRequest):
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @app.post("/scan/execute")
-async def perform_security_check(request: SecurityCheckRequest):
+async def perform_security_check(
+    request: SecurityCheckRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Execute security scan with financial impact analysis (requires authentication)"""
     try:
+        # Verify the user's token to get uploader_id for asset mapping
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        uploader_id = decoded_token.get('uid')
+        
         results = {}
         
         # Run selected tools
@@ -80,17 +90,57 @@ async def perform_security_check(request: SecurityCheckRequest):
 
         # Generate AI Summary
         ai_summary = summarize_scan_results(results)
-
-        # Generate Report
-        report_path = generate_docx_report(request.repo_path, results, ai_summary) # Using repo path as URL proxy for now in report
         
-        return {
+        # NEW: Financial Impact Analysis Pipeline
+        financial_analysis = None
+        try:
+            print("\n💰 Starting Financial Impact Analysis...")
+            financial_analysis = process_scan_results(results, uploader_id)
+            print("✅ Financial analysis completed successfully\n")
+        except Exception as fin_error:
+            print(f"⚠️ Financial analysis failed: {fin_error}")
+            import traceback
+            traceback.print_exc()
+            # Continue even if financial analysis fails
+
+        # Generate Report (with financial section if available)
+        report_path = generate_docx_report(request.repo_path, results, ai_summary)
+        
+        # Append financial analysis to report if available
+        if financial_analysis:
+            try:
+                financial_md = generate_financial_report_markdown(financial_analysis)
+                with open(report_path, 'a', encoding='utf-8') as f:
+                    f.write("\n\n")
+                    f.write(financial_md)
+                print("✅ Financial section added to report")
+            except Exception as e:
+                print(f"⚠️ Failed to append financial section to report: {e}")
+        
+        response = {
             "message": "Security check completed",
             "results": results,
             "ai_summary": ai_summary,
             "report_url": f"/reports/{os.path.basename(report_path)}"
         }
+        
+        # Add financial analysis to response if available
+        if financial_analysis:
+            # Get top 10 risk tickets (sorted by severity and financial impact)
+            risk_tickets = financial_analysis.get("risk_tickets", [])[:10]
+            
+            response["financial_analysis"] = {
+                "summary": financial_analysis["summary"],
+                "vulnerabilities_processed": financial_analysis["vulnerabilities_processed"],
+                "assets_mapped": financial_analysis["assets_mapped"],
+                "risk_tickets_count": len(financial_analysis.get("risk_tickets", [])),
+                "top_risk_tickets": risk_tickets  # Include top 10 tickets with full details
+            }
+        
+        return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
