@@ -1,4 +1,49 @@
 # cyberimpact_backend/services/db_service.py
+"""
+================================================================================
+MONGODB PERSISTENCE & DATA ACCESS SERVICE
+================================================================================
+
+DESCRIPTION:
+    This service manages the database lifecycle for the CyberImpact backend. It 
+    implements a thread-safe Singleton pattern to ensure efficient connection 
+    pooling to MongoDB and provides a high-level API for CRUD operations on 
+    security-related documents.
+
+CORE FEATURES:
+    1.  Singleton Connection Management: 
+        Utilizes the '__new__' method to maintain a single global connection 
+        instance, preventing excessive database handshakes and optimizing 
+        resource usage.
+    2.  UUID Primary Keys: 
+        Replaces default MongoDB ObjectIds with string-based UUIDs for improved 
+        compatibility with external systems and predictable document referencing.
+    3.  Asset Inventory Management: 
+        Dedicated logic for storing and retrieving complex JSON structures 
+        extracted from Excel-based inventory files.
+    4.  Financial Document Storage: 
+        Specialized handling for large text blocks and metadata extracted from 
+        PDF and Word documents, enabling historical tracking and auditing.
+    5.  User-Centric Querying: 
+        Includes filtering logic to retrieve documents based on 'uploader_id', 
+        supporting multi-user environments and data isolation.
+
+DATABASE SCHEMA (Logical):
+    - Collection: 'asset_inventory' -> Stores structured XLSX data.
+    - Collection: 'financial_documents' -> Stores extracted text and file metadata.
+
+WORKFLOW:
+    - Connection: Ping admin on init -> Select DB -> Retrieve Collection.
+    - Transaction: Receive payload -> Map to internal schema -> Insert/Find.
+
+USAGE:
+    Import 'db_service' from this module to perform any database operations. 
+    It is the final destination for data processed by the 'FileService'.
+
+FILE: cyberimpact_backend/services/db_service.py
+VERSION: 1.0.0
+================================================================================
+"""
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, PyMongoError
 from config import MONGODB_URI, DATABASE_NAME

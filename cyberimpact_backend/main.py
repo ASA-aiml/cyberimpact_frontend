@@ -6,17 +6,18 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import git
 from pathlib import Path
+
 from typeCast import (
     RepoRequest, SecurityCheckRequest, AssetInventoryResponse, 
     FinancialDocResponse, DocumentListItem
 )
-from services.repo_service import clone_repository, detect_tech_stack
+from services.git_repo_service import clone_repository, detect_tech_stack
 from services.ai_service import perform_ai_check, summarize_scan_results
 from services.scanner_service import run_security_scan
-from services.report_service import generate_docx_report
+from services.report_generate_service import generate_docx_report
 from services.auth_service import verify_token
-from services.db_service import db_service
-from services.file_service import FileService
+from services.db.db_service import db_service
+from services.db.file_service import FileService
 from config import MAX_FILE_SIZE
 
 app = FastAPI()

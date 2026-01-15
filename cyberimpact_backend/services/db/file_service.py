@@ -1,4 +1,48 @@
 # cyberimpact_backend/services/file_service.py
+"""
+================================================================================
+FILE UTILITY & DATA EXTRACTION SERVICE
+================================================================================
+
+DESCRIPTION:
+    This service serves as the 'Ingestion Engine' for the CyberImpact backend. 
+    It manages the complete lifecycle of uploaded documents—from initial size 
+    and extension validation to deep content extraction from specialized 
+    file formats like Excel, PDF, and Word.
+
+CORE CAPABILITIES:
+    1.  Robust Validation: 
+        Enforces security and infrastructure constraints by validating file 
+        sizes and cross-referencing extensions against white-listed 
+        financial and asset-inventory configurations.
+    2.  Excel (XLSX) Parsing: 
+        Utilizes 'openpyxl' to transform workbook data into JSON-serializable 
+        dictionaries, implementing memory-safe row limiting (1,000 rows) 
+        to prevent processing bottlenecks.
+    3.  PDF Text Extraction: 
+        Leverages 'PyPDF2' to extract both document metadata and raw page 
+        text, facilitating searchable indexing and automated analysis.
+    4.  Word (DOCX) Processing: 
+        Parses complex document structures including paragraphs and tabular 
+        data within tables, ensuring comprehensive text recovery.
+    5.  Storage Management: 
+        Handles low-level I/O operations including safe directory creation, 
+        binary file persistence, and cleanup (deletion) of temporary files.
+
+WORKFLOW:
+    - Input: Raw file bytes and metadata.
+    - Process: Validate -> Save to Temp -> Parse (Based on Format) -> Extract.
+    - Output: Structured dictionary containing metadata and document content.
+
+USAGE:
+    Used primarily by API controllers to process user uploads (like asset 
+    inventories or financial reports) before sending the extracted data to 
+    the database or AI analysis services.
+
+FILE: cyberimpact_backend/services/file_service.py
+VERSION: 1.0.0
+================================================================================
+"""
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
