@@ -1,11 +1,17 @@
 # cyberimpact_backend/main.py
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+import os
+import shutil
+import tempfile
+import datetime
+import git
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import os
-import git
-from pathlib import Path
+from pydantic import BaseModel
+from typing import Optional
 
 from typeCast import (
     RepoRequest, SecurityCheckRequest, AssetInventoryResponse, 
@@ -25,14 +31,37 @@ app = FastAPI()
 
 security = HTTPBearer()
 
-# Configure CORS
+# Configure CORS - Allow both localhost and production URLs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (for production deployment)
+    allow_origins=[
+        "http://localhost:3000",                                    # Local frontend
+        "https://cyberimpact-frontend.onrender.com",               # Production frontend (Render)
+        "https://cyberimpact-frontend-obya.vercel.app",            # Production frontend (Vercel)
+        "http://localhost:8000",                                    # Local backend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+async def root():
+    """Health check endpoint - wakes up the server from Render sleep"""
+    return {
+        "status": "active",
+        "message": "CyberImpact Backend is running",
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+
+@app.get("/api/health")
+async def health_check():
+    """Dedicated health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "cyberimpact-backend",
+        "timestamp": datetime.datetime.now().isoformat()
+    }
 
 @app.get("/api/verify-auth")
 async def verify_authentication(credentials: HTTPAuthorizationCredentials = Depends(security)):

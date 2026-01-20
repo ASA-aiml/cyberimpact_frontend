@@ -56,7 +56,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
             }
 
             const response = await axios.post(
-                'https://cyberimpact-frontend.onrender.com/api/upload/asset-inventory',
+                'http://localhost:8000/api/upload/asset-inventory',
                 formData,
                 {
                     headers: {
@@ -91,7 +91,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
     const fetchDocuments = async () => {
         setLoadingDocs(true);
         try {
-            const response = await axios.get('https://cyberimpact-frontend.onrender.com/api/documents/asset-inventory', {
+            const response = await axios.get('http://localhost:8000/api/documents/asset-inventory', {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },
@@ -108,7 +108,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
         if (!confirm('Are you sure you want to delete this document?')) return;
 
         try {
-            await axios.delete(`https://cyberimpact-frontend.onrender.com/api/documents/${docId}`);
+            await axios.delete(`http://localhost:8000/api/documents/${docId}`);
             fetchDocuments();
         } catch (err: any) {
             console.error('Failed to delete document:', err);
@@ -118,7 +118,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
 
     const downloadDocument = async (docId: string, filename: string) => {
         try {
-            const response = await axios.get(`https://cyberimpact-frontend.onrender.com/api/documents/${docId}`, {
+            const response = await axios.get(`http://localhost:8000/api/documents/${docId}`, {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },
