@@ -59,7 +59,7 @@ export default function FinancialDocUpload({ onUploadSuccess }: FinancialDocUplo
             }
 
             const response = await axios.post(
-                'https://cyberimpact-frontend.onrender.com/api/upload/financial-doc',
+                'http://localhost:8000/api/upload/financial-doc',
                 formData,
                 {
                     headers: {
@@ -94,7 +94,7 @@ export default function FinancialDocUpload({ onUploadSuccess }: FinancialDocUplo
     const fetchDocuments = async () => {
         setLoadingDocs(true);
         try {
-            const response = await axios.get('https://cyberimpact-frontend.onrender.com/api/documents/financial', {
+            const response = await axios.get('http://localhost:8000/api/documents/financial', {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },
@@ -111,7 +111,7 @@ export default function FinancialDocUpload({ onUploadSuccess }: FinancialDocUplo
         if (!confirm('Are you sure you want to delete this document?')) return;
 
         try {
-            await axios.delete(`https://cyberimpact-frontend.onrender.com/api/documents/${docId}`);
+            await axios.delete(`http://localhost:8000/api/documents/${docId}`);
             fetchDocuments();
         } catch (err: any) {
             console.error('Failed to delete document:', err);
@@ -121,7 +121,7 @@ export default function FinancialDocUpload({ onUploadSuccess }: FinancialDocUplo
 
     const downloadDocument = async (docId: string, filename: string) => {
         try {
-            const response = await axios.get(`https://cyberimpact-frontend.onrender.com/api/documents/${docId}`, {
+            const response = await axios.get(`http://localhost:8000/api/documents/${docId}`, {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },

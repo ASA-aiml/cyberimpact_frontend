@@ -1,10 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Login from "../components/Login";
 import AssetInventoryUpload from "../components/AssetInventoryUpload";
 import FinancialDocUpload from "../components/FinancialDocUpload";
 import { useUser } from "@/contexts/UserContext";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function Home() {
   const { idToken } = useUser(); // Get Firebase ID token from context
@@ -16,6 +17,36 @@ export default function Home() {
   const [checkResult, setCheckResult] = useState<any>(null);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'active' | 'error'>('checking');
+
+  // Wake up backend on component mount (prevents Render sleep)
+  useEffect(() => {
+    const wakeUpBackend = async () => {
+      try {
+        console.log('🔄 Waking up backend server...');
+        const response = await axios.get(API_ENDPOINTS.verifyAuth.replace('/api/verify-auth', '/api/health'), {
+          timeout: 30000 // 30 second timeout for cold start
+        });
+        console.log('✅ Backend is active:', response.data);
+        setBackendStatus('active');
+      } catch (error) {
+        console.warn('⚠️ Backend health check failed (may be cold starting):', error);
+        setBackendStatus('error');
+        // Retry once after 5 seconds
+        setTimeout(async () => {
+          try {
+            await axios.get(API_ENDPOINTS.verifyAuth.replace('/api/verify-auth', '/api/health'));
+            setBackendStatus('active');
+          } catch (retryError) {
+            console.error('❌ Backend still not responding');
+          }
+        }, 5000);
+      }
+    };
+
+    wakeUpBackend();
+  }, []); // Run once on mount
+
 
   const analyzeRepo = async () => {
     setAnalyzing(true);
@@ -23,7 +54,7 @@ export default function Home() {
     setCheckResult(null);
     setError(null);
     try {
-      const resp = await axios.post("https://cyberimpact-frontend.onrender.com/scan/analyze", {
+      const resp = await axios.post("http://localhost:8000/scan/analyze", {
         repo_url: repoUrl
       });
       setAnalysisResult(resp.data);
@@ -50,7 +81,7 @@ export default function Home() {
 
     try {
       const resp = await axios.post(
-        "https://cyberimpact-frontend.onrender.com/scan/execute",
+        "http://localhost:8000/scan/execute",
         {
           repo_path: analysisResult.repo_path,
           selected_tools: selectedTools
@@ -89,6 +120,21 @@ export default function Home() {
         <p className="text-gray-400 mb-8">
           Security scanning and document management platform powered by AI.
         </p>
+
+        {/* Backend Status Indicator */}
+        {backendStatus === 'checking' && (
+          <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-800 rounded-lg flex items-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-400"></div>
+            <p className="text-yellow-300 text-sm">
+              🔄 Waking up backend server... (This may take 30-60 seconds on first load)
+            </p>
+          </div>
+        )}
+        {backendStatus === 'active' && (
+          <div className="mb-6 p-3 bg-green-900/30 border border-green-800 rounded-lg">
+            <p className="text-green-300 text-sm">✅ Backend server is active and ready</p>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex gap-2 mb-6">
@@ -208,7 +254,7 @@ export default function Home() {
                   <h3 className="text-2xl font-bold">Security Report</h3>
                   {checkResult.report_url && (
                     <a
-                      href={`https://cyberimpact-frontend.onrender.com${checkResult.report_url}`}
+                      href={`http://localhost:8000${checkResult.report_url}`}
                       download
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
                     >
@@ -272,7 +318,7 @@ export default function Home() {
                       <p className="text-gray-400 mb-2">For complete financial risk tickets with detailed calculations:</p>
                       {checkResult.report_url && (
                         <a
-                          href={`https://cyberimpact-frontend.onrender.com${checkResult.report_url}`}
+                          href={`http://localhost:8000${checkResult.report_url}`}
                           download
                           className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg"
                         >
