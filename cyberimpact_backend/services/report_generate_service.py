@@ -1,12 +1,55 @@
+"""
+================================================================================
+SECURITY REPORT GENERATOR (MARKDOWN)
+================================================================================
+
+DESCRIPTION:
+    This module is responsible for the 'Finalization' phase of the security
+    scanning pipeline. It takes raw findings from multiple SAST and dependency 
+    auditing tools, calculates severity statistics, and compiles them into a 
+    structured, professional Markdown report.
+
+KEY FEATURES:
+    1.  Severity Aggregation: 
+        Automatically calculates a breakdown of Critical, High, Moderate, and 
+        Low severity issues using color-coded indicators (🔴, 🟠, 🟡, 🟢).
+    2.  AI Integration: 
+        Includes a dedicated section for an 'AI Executive Summary' to provide
+        high-level context alongside technical findings.
+    3.  Tool-Specific Formatting: 
+        Features custom parsing logic for various security tools (Bandit, 
+        npm-audit, Safety, Semgrep, etc.) to ensure that file paths, line numbers, 
+        and vulnerability URLs are presented clearly.
+    4.  Automated Recommendations: 
+        Dynamically generates a 'Priority Action Plan' based on the specific 
+        threat levels found during the scan.
+
+REPORT STRUCTURE:
+    - Metadata (Repo URL, Timestamp)
+    - AI Executive Summary
+    - Statistical Summary (Severity Counts)
+    - Detailed Findings (Filtered 'Essential' data per tool)
+    - Remediation Recommendations
+
+USAGE:
+    Called after all security tools have finished execution. The resulting 
+    '.md' file is saved in the /reports directory and is ideal for PR comments, 
+    compliance documentation, or stakeholder updates.
+
+AUTHOR: ABhiram PS
+DATE: 2026-01-14
+================================================================================
+"""
+
 import os
 import datetime
 import json
 
 def generate_docx_report(repo_url: str, scan_results: dict, ai_summary: str = "") -> str:
-    """
-    Generates a Markdown report from scan results with focus on essential findings.
-    Returns the path to the generated file.
-    """
+    
+    # Generates a Markdown report from scan results with focus on essential findings.
+    # Returns the path to the generated file.
+   
     
     # Create reports directory
     reports_dir = os.path.join(os.getcwd(), "reports")

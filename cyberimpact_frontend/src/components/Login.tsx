@@ -2,45 +2,55 @@
 
 import { useState } from "react";
 import axios from "axios";
-import { signInWithPopup, GoogleAuthProvider, User } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Login() {
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string>("");
+    const { user, setUser, setIdToken } = useUser();
+    const [backendData, setBackendData] = useState<any>(null);
 
     const handleLogin = async () => {
         const provider = new GoogleAuthProvider();
         try {
             const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-            setUser(user);
-            const idToken = await user.getIdToken();
-            setToken(idToken);
+            const idToken = await result.user.getIdToken();
 
-            // Send token to backend
-            await axios.get("http://localhost:8000/api/verify-auth", {
+            // Verify with backend
+            const response = await axios.get("http://localhost:8000/api/verify-auth", {
                 headers: {
                     Authorization: `Bearer ${idToken}`
                 }
             });
+
+            setBackendData(response.data);
+            setUser(result.user); // Update context with user
+            setIdToken(idToken); // Store ID token for API calls
+
         } catch (error) {
-            console.error("Error signing in:", error);
+            console.error("Error:", error);
         }
     };
 
     return (
-        <div className="flex flex-col items-center justify-center p-4 border rounded-lg shadow-md bg-white text-black">
-            <h2 className="text-xl font-bold mb-4">Login</h2>
+        <div className="flex flex-col items-center p-6 border rounded-xl shadow-lg bg-white text-black mb-6">
             {user ? (
-                <div className="text-center">
-                    <p className="mb-2">Welcome, {user.displayName}</p>
-                    <p className="text-sm text-gray-500 break-all">Token: {token.slice(0, 20)}...</p>
+                <div className="text-center space-y-4">
+                    <p className="text-green-600 font-semibold">
+                        {backendData?.message}
+                    </p>
+
+                    <div className="bg-gray-100 p-3 rounded-md text-left">
+                        <p className="text-xs font-bold text-gray-500 uppercase">Verified UID from Backend:</p>
+                        <p className="text-sm font-mono break-all">{backendData?.user?.uid}</p>
+                    </div>
+
+                    <p className="text-sm">Logged in as: <b>{user.email}</b></p>
                 </div>
             ) : (
                 <button
                     onClick={handleLogin}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
                 >
                     Sign in with Google
                 </button>

@@ -1,3 +1,43 @@
+"""
+================================================================================
+REPOSITORY INGESTION & TECH-STACK DETECTOR
+================================================================================
+
+DESCRIPTION:
+    This module handles the 'Discovery' phase of the security pipeline. It is 
+    responsible for safely cloning remote source code and intelligently 
+    analyzing the project structure to determine which security tools are 
+    applicable to the codebase.
+
+CORE FUNCTIONS:
+    1.  Secure Ingestion: 
+        Clones remote Git repositories into isolated, unique directories using 
+        UUIDs to prevent path collisions and ensure clean scan environments.
+    2.  Heuristic Tech-Stack Analysis: 
+        Scans for "fingerprint" files (e.g., package.json, requirements.txt, 
+        pom.xml) to identify the programming languages and package managers used.
+    3.  Dynamic Tool Mapping: 
+        Maps detected technologies to specific security scanners:
+        - Python: Bandit, Safety
+        - Node.js: npm-audit, njsscan
+        - Java/Go/Ruby: Dependency Check, Gosec, Brakeman
+        - Universal: Semgrep, Secret Scanning
+
+WORKFLOW:
+    - Input: A remote repository URL.
+    - Process: Clone -> Walk directory tree -> Match files to tool signatures.
+    - Output: A local path for scanning and a list of optimized security tools.
+
+USAGE:
+    This is the first module executed in the pipeline. It provides the 
+    foundation for the 'run_security_scan' module by defining what needs to 
+    be scanned and which tools to use.
+
+AUTHOR: ABhiram PS
+DATE: 2026-01-14
+================================================================================
+"""
+
 import os
 import git
 import uuid

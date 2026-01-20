@@ -1,3 +1,48 @@
+"""
+================================================================================
+SECURITY SCANNING & REPORTING ORCHESTRATOR
+================================================================================
+
+DESCRIPTION:
+    This script serves as a unified interface for executing multiple security 
+    auditing tools against a target repository. It automates the process of 
+    running Static Analysis Security Testing (SAST), dependency vulnerability 
+    checks, and secret scanning, then consolidates the findings into a 
+    human-readable Markdown report.
+
+CORE CAPABILITIES:
+    1.  SAST (Static Analysis): 
+        - Bandit: Scans Python code for common security issues.
+        - Semgrep: Multi-language lightweight static analysis.
+        - njsscan: Specialized SAST for Node.js applications.
+    2.  Dependency Auditing:
+        - Safety: Checks Python dependencies against known vulnerability databases.
+        - npm-audit: Analyzes Node.js package manifests for security risks.
+    3.  Secret Scanning:
+        - Regex-based detection for hardcoded AWS keys and generic API credentials.
+    4.  Reporting:
+        - Generates a structured 'security_report.md' featuring summaries, 
+          severity levels, and specific file/line references for remediation.
+
+WORKFLOW:
+    - The script identifies relevant tools based on the project structure (e.g., 
+      searching for requirements.txt or package.json).
+    - Commands are executed in the local environment/virtual environment.
+    - JSON outputs from various tools are parsed and filtered into an 
+      'essential' data format for consistency.
+    - A Markdown report is compiled to provide a high-level overview for 
+      stakeholders and detailed technical data for developers.
+
+USAGE:
+    This script is designed to be integrated into CI/CD pipelines (GitHub Actions, 
+    Jenkins, etc.) or run locally by developers before pushing code to ensure 
+    security compliance.
+
+AUTHOR: ABhiram PS
+DATE: 2026-01-14
+================================================================================
+"""
+
 import subprocess
 import os
 import json
@@ -186,7 +231,7 @@ def run_security_scan(repo_path: str, tool: str) -> dict:
     return results
 
 
-def generate_markdown_report(scan_results: list, output_file: str = "security_report.md"):
+# def generate_markdown_report(scan_results: list, output_file: str = "security_report.md"):
     """
     Generate a markdown report from security scan results.
     
