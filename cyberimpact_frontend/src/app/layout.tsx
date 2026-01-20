@@ -26,6 +26,10 @@ export const metadata = createMetadata({
   twitterHandle: "@myapp",
 });
 
+export const viewport = {
+  themeColor: "#000000",
+};
+
 <Script
   id="json-ld"
   type="application/ld+json"

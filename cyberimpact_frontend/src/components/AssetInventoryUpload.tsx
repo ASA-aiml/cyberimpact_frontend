@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useUser } from "@/contexts/UserContext";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface AssetInventoryUploadProps {
     onUploadSuccess?: (data: any) => void;
@@ -56,7 +57,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
             }
 
             const response = await axios.post(
-                'http://localhost:8000/api/upload/asset-inventory',
+                API_ENDPOINTS.uploadAssetInventory,
                 formData,
                 {
                     headers: {
@@ -91,7 +92,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
     const fetchDocuments = async () => {
         setLoadingDocs(true);
         try {
-            const response = await axios.get('http://localhost:8000/api/documents/asset-inventory', {
+            const response = await axios.get(API_ENDPOINTS.listAssetInventories, {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },
@@ -108,7 +109,11 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
         if (!confirm('Are you sure you want to delete this document?')) return;
 
         try {
-            await axios.delete(`http://localhost:8000/api/documents/${docId}`);
+            await axios.delete(API_ENDPOINTS.deleteDocument(docId), {
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                },
+            });
             fetchDocuments();
         } catch (err: any) {
             console.error('Failed to delete document:', err);
@@ -118,7 +123,7 @@ export default function AssetInventoryUpload({ onUploadSuccess }: AssetInventory
 
     const downloadDocument = async (docId: string, filename: string) => {
         try {
-            const response = await axios.get(`http://localhost:8000/api/documents/${docId}`, {
+            const response = await axios.get(API_ENDPOINTS.getDocument(docId), {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                 },
