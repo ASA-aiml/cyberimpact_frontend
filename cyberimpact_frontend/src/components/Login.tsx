@@ -5,6 +5,7 @@ import axios from "axios";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useUser } from "@/contexts/UserContext";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function Login() {
     const { user, setUser, setIdToken } = useUser();
@@ -17,7 +18,7 @@ export default function Login() {
             const idToken = await result.user.getIdToken();
 
             // Verify with backend
-            const response = await axios.get("http://localhost:8000/api/verify-auth", {
+            const response = await axios.get(API_ENDPOINTS.verifyAuth, {
                 headers: {
                     Authorization: `Bearer ${idToken}`
                 }

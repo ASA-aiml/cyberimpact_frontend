@@ -26,7 +26,6 @@ export function createMetadata({
     title,
     description,
     manifest: "/manifest.webmanifest",
-    themeColor: "#000000",
     applicationName: appName,
     category,
     keywords,
