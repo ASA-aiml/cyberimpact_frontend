@@ -17,7 +17,7 @@ export default function Login() {
             const idToken = await result.user.getIdToken();
 
             // Verify with backend
-            const response = await axios.get("http://localhost:8000/api/verify-auth", {
+            const response = await axios.get("https://cyberimpact-frontend.onrender.com/api/verify-auth", {
                 headers: {
                     Authorization: `Bearer ${idToken}`
                 }

@@ -23,7 +23,7 @@ export default function Home() {
     setCheckResult(null);
     setError(null);
     try {
-      const resp = await axios.post("http://localhost:8000/scan/analyze", {
+      const resp = await axios.post("https://cyberimpact-frontend.onrender.com/scan/analyze", {
         repo_url: repoUrl
       });
       setAnalysisResult(resp.data);
@@ -50,7 +50,7 @@ export default function Home() {
 
     try {
       const resp = await axios.post(
-        "http://localhost:8000/scan/execute",
+        "https://cyberimpact-frontend.onrender.com/scan/execute",
         {
           repo_path: analysisResult.repo_path,
           selected_tools: selectedTools
@@ -208,7 +208,7 @@ export default function Home() {
                   <h3 className="text-2xl font-bold">Security Report</h3>
                   {checkResult.report_url && (
                     <a
-                      href={`http://localhost:8000${checkResult.report_url}`}
+                      href={`https://cyberimpact-frontend.onrender.com${checkResult.report_url}`}
                       download
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
                     >
@@ -272,7 +272,7 @@ export default function Home() {
                       <p className="text-gray-400 mb-2">For complete financial risk tickets with detailed calculations:</p>
                       {checkResult.report_url && (
                         <a
-                          href={`http://localhost:8000${checkResult.report_url}`}
+                          href={`https://cyberimpact-frontend.onrender.com${checkResult.report_url}`}
                           download
                           className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg"
                         >
@@ -292,9 +292,9 @@ export default function Home() {
                             <div key={index} className="bg-gray-900 rounded-xl border-2 border-gray-800 overflow-hidden hover:border-gray-700 transition">
                               {/* Ticket Header */}
                               <div className={`px-6 py-4 border-b-2 ${ticket.severity.toUpperCase() === 'CRITICAL' ? 'bg-red-900/30 border-red-800' :
-                                  ticket.severity.toUpperCase() === 'HIGH' ? 'bg-orange-900/30 border-orange-800' :
-                                    ticket.severity.toUpperCase() === 'MEDIUM' ? 'bg-yellow-900/30 border-yellow-800' :
-                                      'bg-blue-900/30 border-blue-800'
+                                ticket.severity.toUpperCase() === 'HIGH' ? 'bg-orange-900/30 border-orange-800' :
+                                  ticket.severity.toUpperCase() === 'MEDIUM' ? 'bg-yellow-900/30 border-yellow-800' :
+                                    'bg-blue-900/30 border-blue-800'
                                 }`}>
                                 <div className="flex justify-between items-start">
                                   <div>
