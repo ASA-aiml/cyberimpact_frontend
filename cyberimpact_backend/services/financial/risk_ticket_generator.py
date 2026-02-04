@@ -181,13 +181,22 @@ def generate_risk_ticket(
         Complete risk ticket as dictionary
     """
     # Extract data
-    matched_asset = enriched_data.get("matched_asset")
+    # The 'matched_asset' from enriched_data contains the full asset details
+    # The 'vulnerability' dict might also contain a 'matched_asset' key if it was added during enrichment
+    matched_asset_from_enriched = enriched_data.get("matched_asset")
     financial_context = enriched_data.get("financial_context", {})
     severity = vulnerability.get("severity", "UNKNOWN")
     
-    # Determine asset name
+    # Extract asset information, prioritizing 'asset_name' if available in the matched asset
+    # The 'matched_asset' in 'vulnerability' is the same as 'matched_asset_from_enriched'
+    # but we use 'vulnerability.get("matched_asset")' as per instruction for consistency
+    matched_asset = vulnerability.get("matched_asset")
     if matched_asset:
-        asset_name = matched_asset.get("filename", "Unknown Asset").replace(".xlsx", "").replace("_", " ").title()
+        # Use extracted asset name from the matched row, fallback to filename
+        asset_name = matched_asset.get("asset_name", matched_asset.get("filename", "Unknown Asset"))
+        # Clean up the name if it's still a filename-like string
+        if ".xlsx" in asset_name or "_" in asset_name:
+            asset_name = asset_name.replace(".xlsx", "").replace("_", " ").title()
         confidence = matched_asset.get("confidence", 0)
     else:
         asset_name = "Unidentified System Component"

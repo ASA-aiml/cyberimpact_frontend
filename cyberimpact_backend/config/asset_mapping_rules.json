@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "description": "Enterprise Asset Mapping Configuration for CyberImpact CRQ",
+    "version": "2.5.0",
+    "last_updated": "2026-02-05",
+    "environment_scope": [
+      "Production",
+      "Staging",
+      "DR"
+    ]
+  },
+  "tier_config": {
+    "description": "Logic priority: Path > Regex > Keyword > AI",
+    "use_hard_path_rules": true,
+    "use_regex_matching": true,
+    "use_keyword_matching": true,
+    "use_ai_fallback": true,
+    "keyword_confidence_threshold": 65,
+    "ai_confidence_threshold": 50,
+    "debug_mode": false
+  },
+  "exclusion_rules": {
+    "description": "Paths to explicitly ignore to prevent false positives",
+    "paths": [
+      "test/",
+      "tests/",
+      "__tests__/",
+      "spec/",
+      "mocks/",
+      "fixtures/",
+      "docs/",
+      "examples/",
+      ".git/",
+      ".vscode/",
+      "node_modules/",
+      "venv/"
+    ]
+  },
+  "path_rules": {
+    "description": "Deterministic 1:1 mapping based on file structure. Highest Priority.",
+    "rules": {
+      "CORE_BANKING": {
+        "services/payments": "APP-001",
+        "src/payments": "APP-001",
+        "backend/payment-gateway": "APP-001",
+        "modules/transaction": "APP-001",
+        "api/checkout": "APP-001"
+      },
+      "IDENTITY_ACCESS": {
+        "services/auth": "APP-002",
+        "services/identity": "APP-002",
+        "middleware/auth": "APP-002",
+        "pkg/oauth": "APP-002",
+        "src/main/java/com/acme/security": "APP-002",
+        "cmd/sso-service": "APP-002"
+      },
+      "USER_MANAGEMENT": {
+        "services/user": "APP-003",
+        "services/profile": "APP-003",
+        "api/kyc": "APP-003",
+        "domain/customer": "APP-003"
+      },
+      "BILLING_FINANCE": {
+        "services/billing": "APP-004",
+        "services/invoicing": "APP-004",
+        "modules/subscription": "APP-004",
+        "services/ledger": "APP-004"
+      },
+      "NOTIFICATIONS": {
+        "services/notify": "APP-005",
+        "services/email": "APP-005",
+        "services/sms": "APP-005",
+        "workers/mailer": "APP-005"
+      },
+      "FRONTEND_CLIENTS": {
+        "frontend/dashboard": "WEB-001",
+        "packages/ui-kit": "WEB-001",
+        "client/mobile-ios": "MOB-001",
+        "client/mobile-android": "MOB-002"
+      },
+      "DATA_STORE": {
+        "db/migrations": "DB-001",
+        "db/seeds": "DB-001",
+        "sql/schema": "DB-001",
+        "models/postgres": "DB-001",
+        "infrastructure/rds": "DB-001"
+      },
+      "INFRASTRUCTURE": {
+        "k8s/": "INF-001",
+        "kubernetes/": "INF-001",
+        "helm/": "INF-001",
+        "terraform/": "INF-002",
+        "docker/": "INF-001",
+        ".github/workflows": "INF-003"
+      }
+    }
+  },
+  "regex_rules": {
+    "description": "Pattern matching for standard naming conventions. High Priority.",
+    "patterns": [
+      {
+        "regex": "service-payment-v[0-9]+",
+        "asset_id": "APP-001",
+        "confidence": 95
+      },
+      {
+        "regex": "auth-.*-service",
+        "asset_id": "APP-002",
+        "confidence": 90
+      },
+      {
+        "regex": "user-.*-microservice",
+        "asset_id": "APP-003",
+        "confidence": 85
+      },
+      {
+        "regex": ".*-db-cluster",
+        "asset_id": "DB-001",
+        "confidence": 80
+      },
+      {
+        "regex": "aws-.*-config",
+        "asset_id": "INF-002",
+        "confidence": 75
+      }
+    ]
+  },
+  "keyword_rules": {
+    "description": "Fuzzy matching when paths fail. Medium Priority.",
+    "mappings": {
+      "APP-001": [
+        "payment",
+        "transaction",
+        "checkout",
+        "stripe",
+        "paypal",
+        "wallet",
+        "credit-card"
+      ],
+      "APP-002": [
+        "auth",
+        "login",
+        "sso",
+        "oauth",
+        "jwt",
+        "session",
+        "identity",
+        "cognito"
+      ],
+      "APP-003": [
+        "user",
+        "profile",
+        "account",
+        "customer",
+        "kyc",
+        "onboarding"
+      ],
+      "APP-004": [
+        "billing",
+        "invoice",
+        "finance",
+        "subscription",
+        "tax",
+        "pricing"
+      ],
+      "APP-005": [
+        "notify",
+        "email",
+        "sms",
+        "push",
+        "alert",
+        "messaging",
+        "sendgrid"
+      ],
+      "DB-001": [
+        "database",
+        "mongo",
+        "postgres",
+        "sql",
+        "redis",
+        "schema",
+        "query"
+      ],
+      "INF-001": [
+        "docker",
+        "container",
+        "pod",
+        "deployment",
+        "cluster",
+        "namespace"
+      ],
+      "WEB-001": [
+        "frontend",
+        "ui",
+        "component",
+        "react",
+        "vue",
+        "angular",
+        "css",
+        "html"
+      ]
+    }
+  },
+  "financial_defaults": {
+    "description": "Fallback financial data if DB lookup fails completely. Used by Risk Engine.",
+    "classes": {
+      "mission_critical_api": {
+        "hourly_downtime_cost": 85000,
+        "rto_hours": 4,
+        "data_sensitivity": "PCI"
+      },
+      "critical_service": {
+        "hourly_downtime_cost": 45000,
+        "rto_hours": 8,
+        "data_sensitivity": "PII"
+      },
+      "internal_tool": {
+        "hourly_downtime_cost": 5000,
+        "rto_hours": 24,
+        "data_sensitivity": "Internal"
+      },
+      "infrastructure": {
+        "hourly_downtime_cost": 150000,
+        "rto_hours": 2,
+        "data_sensitivity": "Mixed"
+      }
+    }
+  },
+  "default_assets": {
+    "description": "The safety net. Used when literally nothing else matches.",
+    "unknown_backend": {
+      "name": "Unidentified Backend Service",
+      "asset_id": "UNK-BE-001",
+      "financial_class": "critical_service"
+    },
+    "unknown_frontend": {
+      "name": "Unidentified Frontend Application",
+      "asset_id": "UNK-FE-001",
+      "financial_class": "internal_tool"
+    },
+    "unknown_database": {
+      "name": "Unidentified Data Store",
+      "asset_id": "UNK-DB-001",
+      "financial_class": "mission_critical_api"
+    },
+    "generic_fallback": {
+      "name": "General System Component",
+      "asset_id": "UNK-GEN-001",
+      "financial_class": "internal_tool"
+    }
+  }
+}

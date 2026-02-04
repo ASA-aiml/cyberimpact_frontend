@@ -43,19 +43,24 @@ import git
 import uuid
 from typing import List
 
-def clone_repository(repo_url: str) -> str:
+def clone_repository(repo_url: str, session_repos_dir: str) -> str:
     """
-    Clones a repository to a unique temporary directory.
-    Returns the absolute path to the cloned repository.
+    Clones a repository to the session-specific repos directory.
+    
+    Args:
+        repo_url: Git repository URL to clone
+        session_repos_dir: Session-specific repos directory path (from session manager)
+    
+    Returns:
+        str: Absolute path to the cloned repository
     """
-    base_dir = os.path.join(os.getcwd(), "cloned_repos")
-    os.makedirs(base_dir, exist_ok=True)
-
+    # Extract repo name from URL
     repo_name = repo_url.split("/")[-1].replace(".git", "")
     unique_id = str(uuid.uuid4())[:8]
     clone_dir_name = f"{repo_name}_{unique_id}"
-    clone_path = os.path.join(base_dir, clone_dir_name)
+    clone_path = os.path.join(session_repos_dir, clone_dir_name)
     
+    # Clone the repository
     git.Repo.clone_from(repo_url, clone_path)
     return clone_path
 

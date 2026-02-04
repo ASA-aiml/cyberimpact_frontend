@@ -25,6 +25,7 @@ from services.auth_service import verify_token
 from services.db.db_service import db_service
 from services.db.file_service import FileService
 from services.financial.financial_pipeline import process_scan_results, generate_financial_report_markdown
+from services.session_manager import session_manager
 from config import MAX_FILE_SIZE
 
 app = FastAPI()
@@ -70,19 +71,32 @@ async def verify_authentication(credentials: HTTPAuthorizationCredentials = Depe
     return {"message": "Authentication successful", "user": decoded_token}
 
 @app.post("/scan/analyze")
-async def analyze_repo(request: RepoRequest):
+async def analyze_repo(
+    request: RepoRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Analyze repository and create isolated session with venv (requires authentication)"""
     try:
-        # Clone the repository
-        clone_path = clone_repository(request.repo_url)
+        # Verify the user's token
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_id = decoded_token.get('uid')
+        
+        # Create isolated session with virtual environment
+        session_data = session_manager.create_session(user_id)
+        
+        # Clone the repository into session's repos directory
+        clone_path = clone_repository(request.repo_url, session_data["repos_dir"])
         
         # Detect tech stack using heuristics
         suggested_tools = detect_tech_stack(clone_path)
 
         return {
             "message": "Repository analyzed successfully",
-            "repo_path": clone_path,
+            "session_id": session_data["session_id"],
             "repo_url": request.repo_url,
-            "suggested_tools": suggested_tools
+            "suggested_tools": suggested_tools,
+            "session_expires_at": session_data["expires_at"].isoformat()
         }
     except git.GitCommandError as e:
         raise HTTPException(status_code=400, detail=f"Failed to clone repository: {str(e)}")
@@ -103,13 +117,26 @@ async def perform_security_check(
         decoded_token = verify_token(token)
         uploader_id = decoded_token.get('uid')
         
+        # Get session data and verify ownership
+        session_data = session_manager.get_session(request.session_id, uploader_id)
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Session not found or expired")
+        
+        # Find the cloned repository in the session's repos directory
+        repos_dir = Path(session_data["repos_dir"])
+        repo_dirs = list(repos_dir.glob("*"))
+        if not repo_dirs:
+            raise HTTPException(status_code=400, detail="No repository found in session")
+        
+        repo_path = str(repo_dirs[0])  # Use the first (and should be only) repo
+        
         results = {}
         
         # Run selected tools
         for tool in request.selected_tools:
             # Check if it's a known static analysis tool
             if any(x in tool for x in ["bandit", "safety", "npm-audit", "secret-scanning", "semgrep", "njsscan"]):
-                 results[tool] = run_security_scan(request.repo_path, tool)
+                 results[tool] = run_security_scan(repo_path, tool)
             else:
                 # Fallback to AI check for other/generic tools or if specific file analysis was requested
                 # For now, we will just use the scanner service for everything we support
@@ -133,7 +160,7 @@ async def perform_security_check(
             # Continue even if financial analysis fails
 
         # Generate Report (with financial section if available)
-        report_path = generate_docx_report(request.repo_path, results, ai_summary)
+        report_path = generate_docx_report(repo_path, results, ai_summary)
         
         # Append financial analysis to report if available
         if financial_analysis:
@@ -447,6 +474,88 @@ async def delete_document(document_id: str, credentials: HTTPAuthorizationCreden
         raise HTTPException(status_code=404, detail="Document not found")
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+# Session Management Endpoints
+
+@app.get("/api/session/{session_id}/status")
+async def get_session_status(
+    session_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get session status (requires authentication)"""
+    try:
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_id = decoded_token.get('uid')
+        
+        session_data = session_manager.get_session(session_id, user_id)
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Session not found or expired")
+        
+        return {
+            "session_id": session_data["session_id"],
+            "created_at": session_data["created_at"].isoformat(),
+            "last_access": session_data["last_access"].isoformat(),
+            "expires_at": session_data["expires_at"].isoformat(),
+            "status": "active"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.post("/api/session/{session_id}/heartbeat")
+async def session_heartbeat(
+    session_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Keep session alive by updating heartbeat (requires authentication)"""
+    try:
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_id = decoded_token.get('uid')
+        
+        if not session_manager.update_heartbeat(session_id, user_id):
+            raise HTTPException(status_code=404, detail="Session not found or expired")
+        
+        return {"message": "Session heartbeat updated", "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.delete("/api/session/{session_id}")
+async def cleanup_session(
+    session_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Manually cleanup session (requires authentication)"""
+    try:
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_id = decoded_token.get('uid')
+        
+        if not session_manager.cleanup_session(session_id, user_id):
+            raise HTTPException(status_code=404, detail="Session not found or already cleaned up")
+        
+        return {"message": "Session cleaned up successfully", "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+@app.get("/api/sessions")
+async def list_user_sessions(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """List all active sessions for the authenticated user"""
+    try:
+        token = credentials.credentials
+        decoded_token = verify_token(token)
+        user_id = decoded_token.get('uid')
+        
+        sessions = session_manager.get_all_sessions(user_id)
+        return {"sessions": sessions, "count": len(sessions)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
