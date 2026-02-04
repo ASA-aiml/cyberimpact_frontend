@@ -53,10 +53,24 @@ export default function Home() {
     setAnalysisResult(null);
     setCheckResult(null);
     setError(null);
+
+    // Check if user is authenticated
+    if (!idToken) {
+      setError("Please sign in with Google to analyze repositories");
+      setAnalyzing(false);
+      return;
+    }
+
     try {
-      const resp = await axios.post(API_ENDPOINTS.scanAnalyze, {
-        repo_url: repoUrl
-      });
+      const resp = await axios.post(
+        API_ENDPOINTS.scanAnalyze,
+        { repo_url: repoUrl },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}` // Include Firebase token
+          }
+        }
+      );
       setAnalysisResult(resp.data);
       setSelectedTools(resp.data.suggested_tools || []);
     } catch (err: any) {
@@ -83,7 +97,7 @@ export default function Home() {
       const resp = await axios.post(
         API_ENDPOINTS.scanExecute,
         {
-          repo_path: analysisResult.repo_path,
+          session_id: analysisResult.session_id, // Use session_id instead of repo_path
           selected_tools: selectedTools
         },
         {
@@ -201,7 +215,10 @@ export default function Home() {
                   <div className="mb-4 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
                     <h3 className="text-lg font-semibold text-blue-200 mb-2">Analysis Complete</h3>
                     <p className="text-sm text-gray-300">
-                      Repository cloned to: <code className="bg-gray-800 px-1 rounded">{analysisResult.repo_path}</code>
+                      Session ID: <code className="bg-gray-800 px-1 rounded">{analysisResult.session_id}</code>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Session expires: {new Date(analysisResult.session_expires_at).toLocaleString()}
                     </p>
                   </div>
 
@@ -264,7 +281,7 @@ export default function Home() {
                 </div>
 
                 {/* AI Summary */}
-                {checkResult.ai_summary && (
+                {/* {checkResult.ai_summary && (
                   <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl border border-purple-500/30 p-6 mb-8">
                     <h4 className="text-xl font-bold text-purple-300 mb-3 flex items-center gap-2">
                       ✨ AI Executive Summary
@@ -273,7 +290,7 @@ export default function Home() {
                       {checkResult.ai_summary}
                     </div>
                   </div>
-                )}
+                )} */}
 
                 {/* Financial Analysis Summary */}
                 {checkResult.financial_analysis && (

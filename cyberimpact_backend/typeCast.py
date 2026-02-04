@@ -6,7 +6,7 @@ class RepoRequest(BaseModel):
     repo_url: str
 
 class SecurityCheckRequest(BaseModel):
-    repo_path: str
+    session_id: str
     selected_tools: List[str]
 
 class DocumentMetadata(BaseModel):
